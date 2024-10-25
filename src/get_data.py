@@ -2,11 +2,9 @@ from typing import List
 from selenium import webdriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
-
+import threading
 
 import pandas as pd
-
-type_of_investiment = ""
 
 def get_fin_table(table:WebElement)->pd.DataFrame:
     data_fragment = {}
@@ -53,7 +51,7 @@ def get_investiments_data(table:WebElement)->pd.DataFrame:
             except:
                 print(f"Erro de converção em {values[-1].text}")
             finally:
-                count+=1
+                count = 1 + count
                 
 
 
@@ -102,15 +100,11 @@ def get_data_by_url(url:str)->pd.DataFrame:
     driver.get(url)
     tables = driver.find_elements(By.TAG_NAME, "table")
     data = []
-    data.append(get_first_table(tables[0]))
     for i, table in enumerate(tables[2:33]):
-        print(table.text)
         data.append(get_investiments_data(table))
     for i in range(9,14):
-        print(table.text)
         data.append(get_fin_table(tables[-i]))
     for i in range(4,8):
-        print(table.text)
         data.append(get_last_table(tables[-i]))
     driver.close()
     df = pd.concat(data, axis="columns")
@@ -119,14 +113,21 @@ def get_data_by_url(url:str)->pd.DataFrame:
     
 def main():
     urls = pd.read_csv('assets/url.csv')
-    data = []
-    for i,url in enumerate(urls['url']):
+    
+    try:
+        df = pd.read_csv('assets/dados.csv')
+    except:
+        df = pd.DataFrame()
+    for i,url in enumerate(urls['url'].loc[len(df)-1:]):
         new_data = get_data_by_url(url)
-        data.append(new_data)
-        print(f"Tabela {i+1}-{len(urls)}: OK")
-    df = pd.concat(data, keys=range(len(data)),verify_integrity=False, ignore_index=True, join="inner")
+        df = pd.concat([df,new_data])
+        df[df.isna()] = 0
+        df.to_csv('/home/erik/Área de trabalho/tcc/assets/dados.csv',index=False)
+        # data.append(new_data)
+        # print(f"Tabela {i+1}-{len(urls)}: OK")
+    # df = pd.concat(data, keys=range(len(data)),verify_integrity=False, ignore_index=True, join="inner")
+    # df.to_csv('/home/erik/Área de trabalho/tcc/assets/dados.csv',index=False)
 
-    df.to_csv('/home/erik/Área de trabalho/tcc/assets/dados.csv',index=False)
         
 if __name__ == "__main__":
     main()
