@@ -21,7 +21,7 @@ def get_fin_table(table:WebElement)->pd.DataFrame:
     return data
 
 # Calculos para cra: soma, desvio padrão, número de contador. 
-def get_investiments_data(table:WebElement)->pd.DataFrame:
+def get_investments_data(table:WebElement)->pd.DataFrame:
     rows = table.find_elements(By.CSS_SELECTOR,"tr")
     counter = len(rows)
     investiments = table.find_elements(By.CSS_SELECTOR,"th")
@@ -40,14 +40,14 @@ def get_investiments_data(table:WebElement)->pd.DataFrame:
         return pd.DataFrame()
     
     data_fragmente = {}
-    sum = 0.0
+    _sum = 0.0
     count = 0
     for row in rows:
         values = row.find_elements(By.CSS_SELECTOR,"td")
         if (len(values) > 0 and "R" not in values[-1].text and values[-1].text != ''):
             try:
                 sum_std = values[-1].text.replace(".","").replace(",",".").replace('%','')
-                sum = float(sum_std) + sum 
+                _sum = float(sum_std) + _sum 
             except:
                 print(f"Erro de converção em {values[-1].text}")
             finally:
@@ -55,7 +55,7 @@ def get_investiments_data(table:WebElement)->pd.DataFrame:
                 
 
 
-    mean = sum / count
+    mean = _sum / count
     for row in rows:
         values = row.find_elements(By.TAG_NAME,"td")
         if (len(values) > 0 and "R" not in values[-1].text and values[-1].text != ''):
@@ -65,8 +65,8 @@ def get_investiments_data(table:WebElement)->pd.DataFrame:
             except:
                 print(f"Erro em {values[-1].text}")
 
-    data_fragmente[f"{investiment} sum"] = [sum]
-    data_fragmente[f"{investiment} mean"] = [sum/count]
+    data_fragmente[f"{investiment} sum"] = [_sum]
+    data_fragmente[f"{investiment} mean"] = [_sum/count]
     data_fragmente[f"{investiment} count"] = [count]
     data_fragmente[f"{investiment} stdr"] = [s/count]
     data = pd.DataFrame(data=data_fragmente)
@@ -101,7 +101,7 @@ def get_data_by_url(url:str)->pd.DataFrame:
     tables = driver.find_elements(By.TAG_NAME, "table")
     data = []
     for i, table in enumerate(tables[2:33]):
-        data.append(get_investiments_data(table))
+        data.append(get_investments_data(table))
     for i in range(9,14):
         data.append(get_fin_table(tables[-i]))
     for i in range(4,8):
@@ -113,16 +113,12 @@ def get_data_by_url(url:str)->pd.DataFrame:
     
 def main():
     urls = pd.read_csv('assets/url.csv')
-    
-    try:
-        df = pd.read_csv('assets/dados.csv')
-    except:
-        df = pd.DataFrame()
-    for i,url in enumerate(urls['url'].loc[len(df)-1:]):
+    df = pd.DataFrame()
+    for i,url in enumerate(urls['url'].loc[240:]):
         new_data = get_data_by_url(url)
         df = pd.concat([df,new_data])
         df[df.isna()] = 0
-        df.to_csv('/home/erik/Área de trabalho/tcc/assets/dados.csv',index=False)
+        df.to_csv('/home/erik/Área de trabalho/tcc/assets/dados1.csv',index=False)
         # data.append(new_data)
         # print(f"Tabela {i+1}-{len(urls)}: OK")
     # df = pd.concat(data, keys=range(len(data)),verify_integrity=False, ignore_index=True, join="inner")
@@ -131,3 +127,4 @@ def main():
         
 if __name__ == "__main__":
     main()
+    # get_url()

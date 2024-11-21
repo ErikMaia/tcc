@@ -1,0 +1,28 @@
+import pandas as pd
+
+from selenium import webdriver
+
+def get_url():
+    tickers = pd.read_csv('assets/url.csv')['Nome'].unique()
+    mounth = pd.DataFrame()
+    quarterly = pd.DataFrame()
+    for ticker in tickers:
+        print(ticker)
+        drive = webdriver.Firefox(keep_alive=True)
+        drive.get(f"https://fiagro.com.br/{ticker}11")
+        next_button = drive.find_elements(By.CLASS_NAME,"next")[-1]
+        page_max_number = drive.find_elements(By.CLASS_NAME,"page-numbers")[-2].text
+        for page in range(int(page_max_number)):
+            links = drive.find_elements(By.TAG_NAME,"a")
+            for link in links:
+                if link.text == "Informes Periódicos, Informe Mensal":
+                    df = pd.DataFrame({"name": [ticker], "url": [link.get_attribute('href')]})
+                    mounth = pd.concat([mounth,df])
+                elif link.text == "Informes Periódicos, Informe Trimestral":
+                    df = pd.DataFrame(data={"name": [ticker], "url": [link.get_attribute('href')]})
+                    quarterly = pd.concat([quarterly,df])
+            next_button.click()
+        drive.close()
+    mounth.to_csv('assets/mes.csv')
+    quarterly.to_csv('assets/trimestre.csv')
+        
