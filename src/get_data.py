@@ -91,7 +91,7 @@ def get_first_table(table:WebElement):
     rows:List[WebElement] = table.find_elements(By.TAG_NAME, "td")
 
     for i in range(int(len(rows)/2)-1):
-        data_fragment[rows[i*2].text.replace(" ","")] = [rows[i*2+1].text.replace(" ","")]
+        data_fragment[rows[i*2].text.replace(" ","").replace('\n','')] = [rows[i*2+1].text.replace(" ","")]
     return pd.DataFrame(data=data_fragment)
 
     
@@ -99,9 +99,9 @@ def get_data_by_url(url:str)->pd.DataFrame:
     driver = webdriver.Firefox()
     driver.get(url)
     tables = driver.find_elements(By.TAG_NAME, "table")
-    data = []
-    for i, table in enumerate(tables[2:33]):
-        data.append(get_investments_data(table))
+    data = [get_first_table(tables[0])]
+    # for i, table in enumerate(tables[2:33]):
+    #     data.append(get_investments_data(table))
     for i in range(9,14):
         data.append(get_fin_table(tables[-i]))
     for i in range(4,8):
@@ -112,9 +112,9 @@ def get_data_by_url(url:str)->pd.DataFrame:
     
     
 def main():
-    urls = pd.read_csv('assets/url.csv')
+    urls = pd.read_csv('assets/trimestre.csv')
     df = pd.DataFrame()
-    for i,url in enumerate(urls['url'].loc[240:]):
+    for i, url in enumerate(urls['url']):
         new_data = get_data_by_url(url)
         df = pd.concat([df,new_data])
         df[df.isna()] = 0
