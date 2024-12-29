@@ -3,7 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 
 def get_mount():
-    mount = pd.read_csv("assets/trimestre.csv")
+    mount = pd.read_csv("assets/url.csv")
     df = pd.DataFrame()
     for col in range(len(mount)):
         driver = webdriver.Firefox()
