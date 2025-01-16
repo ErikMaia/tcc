@@ -3,6 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
 import threading
+import yfinance
 
 import pandas as pd
 
