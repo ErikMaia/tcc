@@ -1,6 +1,8 @@
 import pandas as pd
-
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+
+urls = []
 
 def get_url():
     tickers = pd.read_csv('assets/url.csv')['Nome'].unique()
@@ -26,3 +28,14 @@ def get_url():
     mounth.to_csv('assets/mes.csv')
     quarterly.to_csv('assets/trimestre.csv')
         
+def get_url_by_main_page():
+    drive = webdriver.Firefox(keep_alive=True)
+    drive.get('https://fiagro.com.br/')
+    links = drive.find_elements(By.TAG_NAME,"a")
+    for link in links:
+        urls.append(link.get_attribute('href'))
+        print(urls)
+    urls.remove('https://fiagro.com.br/')
+
+get_url_by_main_page()
+get_url()
