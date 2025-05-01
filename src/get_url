@@ -1,41 +1,133 @@
+from dataclasses import dataclass
+from multiprocessing.managers import RemoteError
+from typing import List
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
-urls = []
-
-def get_url():
-    tickers = pd.read_csv('assets/url.csv')['Nome'].unique()
-    mounth = pd.DataFrame()
-    quarterly = pd.DataFrame()
-    for ticker in tickers:
-        print(ticker)
-        drive = webdriver.Firefox(keep_alive=True)
-        drive.get(f"https://fiagro.com.br/{ticker}11")
-        next_button = drive.find_elements(By.CLASS_NAME,"next")[-1]
-        page_max_number = drive.find_elements(By.CLASS_NAME,"page-numbers")[-2].text
-        for page in range(int(page_max_number)):
-            links = drive.find_elements(By.TAG_NAME,"a")
-            for link in links:
-                if link.text == "Informes Periódicos, Informe Mensal":
-                    df = pd.DataFrame({"name": [ticker], "url": [link.get_attribute('href')]})
-                    mounth = pd.concat([mounth,df])
-                elif link.text == "Informes Periódicos, Informe Trimestral":
-                    df = pd.DataFrame(data={"name": [ticker], "url": [link.get_attribute('href')]})
-                    quarterly = pd.concat([quarterly,df])
-            next_button.click()
-        drive.close()
-    mounth.to_csv('assets/mes.csv')
-    quarterly.to_csv('assets/trimestre.csv')
+from selenium.common.exceptions import ElementClickInterceptedException
+import time
+import threading
+import random
+@dataclass
+class Url:
+    ticker: str
+    url: str
+def close_ads(driver):
+    try:
+        time.sleep(15)
+        btns = driver.find_elements(By.CLASS_NAME, "btn-close")
+        if len(btns)>0:
+            btns[0].click()
         
-def get_url_by_main_page():
-    drive = webdriver.Firefox(keep_alive=True)
-    drive.get('https://fiagro.com.br/')
-    links = drive.find_elements(By.TAG_NAME,"a")
-    for link in links:
-        urls.append(link.get_attribute('href'))
-        print(urls)
-    urls.remove('https://fiagro.com.br/')
+        ad = driver.find_elements(By.ID, "footer-fixed")
+        if len(ad) > 0:
+            ad[0].find_element(By.TAG_NAME, "a").click()
+    except Exception as e:
+        print(f"Erro ao fechar o anúncio: {e}")
+        pass
 
-get_url_by_main_page()
-get_url()
+def get_url(urls: List[Url]):
+    month = pd.DataFrame()
+    quarterly = pd.DataFrame()
+    driver = webdriver.Firefox(keep_alive=True)
+    for url in urls:
+        driver.get(url.url)
+        close_ads(driver)
+        max_pages = 10
+        for _ in range(max_pages):
+            time.sleep(1)
+            list_of_fiagro = driver.find_element(By.CSS_SELECTOR, ".documents")
+            pagination = list_of_fiagro.find_element(By.CLASS_NAME, "pagination")
+            next_buttons = pagination.find_elements(By.TAG_NAME, "a")[-1]
+            documents = list_of_fiagro.find_elements(By.CLASS_NAME, "d-flex")
+            for doc in documents:
+                text = doc.text
+                text = text.upper()
+                print(text + "|")
+                links = doc.find_elements(By.TAG_NAME, "a")
+                size_of_links = len(links)
+                if size_of_links > 0:
+                    if 'INFORME MENSAL' in text:
+                        link = links[0]
+                        a_text = link.get_attribute('href')
+                        month = pd.concat([month, pd.DataFrame({"name": [url.ticker], "url": [a_text]})], ignore_index=True)
+                    elif 'INFORME TRIMESTRAL' in text:
+                        link = links[0]
+                        a_text = link.get_attribute('href')
+                        quarterly = pd.concat([quarterly, pd.DataFrame({"name": [url.ticker], "url": [a_text]})], ignore_index=True)
+            try:
+                next_buttons.click()
+            except Exception as e:
+                print(f"Erro ao clicar no botão de próxima página: {e}")
+                break
+            # driver.quit()
+    driver.quit()
+    random_number = random.randint(1, 1000)
+    time.sleep(random_number)
+    old_mouth = pd.read_csv('mes.csv')
+    old_quarterly = pd.read_csv('trimestre.csv')
+    month = pd.concat([old_mouth, month], ignore_index=True)
+    quarterly = pd.concat([old_quarterly, quarterly], ignore_index=True)
+    # Remove duplicatas
+    month = month.drop_duplicates(subset=['name', 'url'])
+    quarterly = quarterly.drop_duplicates(subset=['name', 'url'])
+    # Salva os resultados
+    month.to_csv('mes.csv', index=False)
+    quarterly.to_csv('trimestre.csv', index=False)
+
+
+def get_url_by_main_page(pages: int = 3) -> List[Url]:
+    urls = []
+    driver = webdriver.Firefox(keep_alive=True)
+    try:
+        driver.get('https://statusinvest.com.br/fiagros')
+        close_ads(driver)
+        for _ in range(pages):
+            list_of_fiagro = driver.find_elements(By.CSS_SELECTOR, ".assets-section")[0]
+            links = list_of_fiagro.find_elements(By.TAG_NAME, "a")
+
+            for link in links:
+                try:
+                    ticker_elements = link.find_elements(By.CSS_SELECTOR, "h3")
+                    if ticker_elements:
+                        ticker = ticker_elements[0].text
+                        urls.append(Url(ticker=ticker, url=link.get_attribute('href')))
+                        print(f"Encontrado: {ticker}")
+                except Exception as e:
+                    print(f"Erro ao extrair ticker: {e}")
+
+            try:
+                pagination = list_of_fiagro.find_element(By.CLASS_NAME, "pagination")
+                next_btn = pagination.find_elements(By.TAG_NAME, "a")[-1]
+                next_btn.click()
+                time.sleep(2)
+            except Exception as e:
+                print(f"Erro na paginação: {e}")
+                close_btns = driver.find_elements(By.CLASS_NAME, "btn-close")
+                if close_btns:
+                    close_btns[0].click()
+                break
+    finally:
+        driver.quit()
+
+    return urls
+
+
+# Exemplo de uso:
+# Para extrair todos os FIAGROs da página principal:
+fiagro_urls = get_url_by_main_page()
+size_of_urls = len(fiagro_urls)
+number_of_threads = 5
+if size_of_urls > number_of_threads:
+    urls_per_thread = size_of_urls // number_of_threads
+    for i in range(number_of_threads):
+        start_index = i * urls_per_thread
+        end_index = (i + 1) * urls_per_thread if i != number_of_threads - 1 else size_of_urls
+        threading.Thread(target=get_url, args=(fiagro_urls[start_index:end_index],)).start()
+else:
+    # Se o número de URLs for menor que o número de threads, executa em uma única thread
+    threading.Thread(target=get_url, args=(fiagro_urls,)).start()
+# get_url(fiagro_urls)
+
+# Para testar com um único fundo específico:
+# get_url([Url(ticker='FLEM11', url='https://statusinvest.com.br/fiagros/flem11')])
