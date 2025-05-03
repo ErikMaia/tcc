@@ -12,8 +12,8 @@ def get_fin_table(table:WebElement)->pd.DataFrame:
         values = row.find_elements(By.CSS_SELECTOR,"td")
         number_of_cell = len(values)
         if number_of_cell > 0:
-            data_fragment[f"{values[0].text.replace(" ", "")}_financeiro"] = [float(values[-2].text.replace(".","").replace(",",".")) if values[-2].text != "" else 0]
-            data_fragment[f"{values[0].text.replace(" ", "")}_contabil"] = [float(values[-1].text.replace(".","").replace(",",".")) if values[-1].text != "" else 0]
+            data_fragment[f"{values[0].text}_financeiro"] = [float(values[-2].text.replace(".","").replace(",",".")) if values[-2].text != "" else 0]
+            data_fragment[f"{values[0].text}_contabil"] = [float(values[-1].text.replace(".","").replace(",",".")) if values[-1].text != "" else 0]
     data = pd.DataFrame(data=data_fragment)
     # print(data)
     return data
@@ -116,7 +116,7 @@ def main():
         new_data = get_data_by_url(url)
         df = pd.concat([df,new_data])
         df[df.isna()] = 0
-        df.to_csv('/home/erik/Área de trabalho/tcc/assets/dados1.csv',index=False)
+        df.to_csv('../assets/dados1.csv',index=False)
         # data.append(new_data)
         # print(f"Tabela {i+1}-{len(urls)}: OK")
     # df = pd.concat(data, keys=range(len(data)),verify_integrity=False, ignore_index=True, join="inner")
